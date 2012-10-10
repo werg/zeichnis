@@ -1,6 +1,13 @@
 (ns zeichnis.simple
-  (:require [clojure.set :as set]))
+  (:require [clojure.set :as cljset]))
 
+;; try running
+(comment (all-subsumers {:a {:b 23} :c "me"}))
+;; should give you all subsuming terms
+(comment (_ {} {:a _} {:c _} {:a {}} {:c "me"} {:a {:b _}} {:a {:b 23}}) )
+
+;; real documentation will follow
+;; and de-helmarization if god is my witness
 
 (def store (atom {'_ {:stored-flag false
                       :substitution {}
@@ -12,6 +19,7 @@
   (if (empty? k)
     v
     (assoc-in m k v)))
+
 
 ;; todo:
 ;; make so we can have connections
@@ -37,9 +45,8 @@
       {}
       target)))
 
-
 (defn subst [target-term current-term all-subst-paths paths2extends subst-path]
-  (prn  [target-term current-term all-subst-paths paths2extends subst-path])
+  ;(prn  [target-term current-term all-subst-paths paths2extends subst-path])
   (let [subst-target (get-in target-term subst-path)
         is-structure? (map? subst-target)
         gutted (if is-structure? {} subst-target)
@@ -49,11 +56,6 @@
                       paths2extends)
         new-subst (remove #(= subst-path %) all-subst-paths)]
   [new-term new-subst new-extends]))
-
-(defn powset [ls]
-  (if (empty? ls) '(())
-      (set/union (powset (next ls))
-             (map #(conj % (first ls)) (powset (next ls))))))
 
 (defn insert-vars [current-term paths]
   (loop [term current-term paths paths]
@@ -65,27 +67,32 @@
 ;; something similar to expand a term at an extension-point
 
 (defn ext [target-term current-term all-extend-paths paths2vars extend-path]
-  (prn "ere")
   (let [extend-target (get-in target-term extend-path)]
     (if (empty? extend-target)
       []
-      (let [key-combos (powset (map #(concat extend-path [%]) (keys extend-target)))
-            new-extends (remove #(= extend-path all-extend-paths))]
-        (map #(conj (insert-vars current-term %) new-extends) key-combos)))))
+      (let [current-keys (keys (get-in current-term extend-path))
+            target-keys (keys extend-target)
+            new-keys (cljset/difference  (set target-keys) (set current-keys))
+            new-extends (remove #(= extend-path %)  all-extend-paths)
+            new-paths (map #(concat extend-path [%]) new-keys)]
+         (map #(vector
+               (my-assoc-in current-term % '_)
+               (conj paths2vars %)
+               new-extends)
+             new-paths)))))
 
 (defn expand-node [target-term [current-term paths2vars paths2extends]]
-  (prn "there"[target-term [current-term paths2vars paths2extends]] )
-  (concat
-   (map #(ext target-term current-term paths2extends paths2vars %) paths2extends))
-   (map #(subst target-term current-term paths2vars paths2extends %) paths2vars))
+  (remove nil?
+          (concat
+           (mapcat #(ext target-term current-term paths2extends paths2vars %) paths2extends)
+           (map #(subst target-term current-term paths2vars paths2extends %) paths2vars))))
 
 (defn all-subsumers [term]
-  (let [initial-node ['_ [[]] [[]]]]
+  (let [initial-node ['_ [[]] []]]
     (loop [current-nodes [initial-node] subsumers ['_]]
-      (prn "bigstate:" current-nodes subsumers)
-      (if (not (empty? current-nodes))
-        (let [new-current (map #(expand-node term %) current-nodes)
+      (if (empty? current-nodes)
+        subsumers
+        (let [new-current (mapcat #(expand-node term %) current-nodes)
               new-subsumers (map first new-current) ;; todo: remove dupes
               ]
-          (recur new-current (concat subsumers new-subsumers)))
-        subsumers))))
+          (recur new-current (concat subsumers new-subsumers)))))))
