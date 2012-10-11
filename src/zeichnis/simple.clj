@@ -73,7 +73,9 @@
       (let [current-keys (keys (get-in current-term extend-path))
             target-keys (keys extend-target)
             new-keys (cljset/difference  (set target-keys) (set current-keys))
-            new-extends (remove #(= extend-path %)  all-extend-paths)
+            new-extends (if (empty? new-keys)
+                          (remove #(= extend-path %)  all-extend-paths)
+                          all-extend-paths)
             new-paths (map #(concat extend-path [%]) new-keys)]
          (map #(vector
                (my-assoc-in current-term % '_)
@@ -91,7 +93,7 @@
   (let [initial-node ['_ [[]] []]]
     (loop [current-nodes [initial-node] subsumers ['_]]
       (if (empty? current-nodes)
-        subsumers
+        (set subsumers)
         (let [new-current (mapcat #(expand-node term %) current-nodes)
               new-subsumers (map first new-current) ;; todo: remove dupes
               ]
