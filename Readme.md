@@ -7,7 +7,7 @@ Zeichnis is originally intended as a distributed persistence layer for function 
 ### Limitations
 
 Zeichnis currently has no well-developed means of managing state. It is not a general purpose database!!
-The ostentative semantic model of Zeichnis is that of an underdefined set of terms in which we constantly keep discovering new members. There is no sense of mutability, nor a built-in means of asserting or retracting facts that will change over time (temporally labeled facts are fine). Considering these limitations Zeichnis is perfectly suited for memoizing pure functions.
+The ostensive semantic model of Zeichnis is that of an underdefined set of terms in which we constantly keep discovering new members. There is no sense of mutability, nor a built-in means of asserting or retracting facts that will change over time (temporally labeled facts are fine). Considering these limitations Zeichnis is perfectly suited for memoizing pure functions.
 
 We are examining how to extend Zeichnis using metadata in order to enable not only attribution and semantic annotation, but also state and (partially ordered) transactions (i.e. much of the features reported missing above). This is an ongoing investigation.
 
