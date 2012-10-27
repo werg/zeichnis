@@ -1,13 +1,13 @@
 # Zeichnis - A universal term store
 
-Zeichnis is a backend-agnostic database intended for storage and query of terms. In this context 'terms' roughly correspond semantically to JSON documents. Zeichnis indexes these terms structurally and allows us to query and store underdefined terms (e.g. containing variables). This works much as it would in a Prolog-like system (though it slighly departs from classical Prolog semantics).
+Zeichnis is a backend-agnostic database framework intended for storage and query of terms. In this context 'terms' roughly correspond to JSON documents. Zeichnis indexes these terms structurally and allows us to query and store underdefined terms (e.g. containing variables). This works much as it would in a Prolog-like system (though it slighly departs from classical Prolog semantics).
 
-Zeichnis is originally intended as a distributed persistence layer for function memoization, dynamic programming (and even functional reactive pogramming). It is not (yet) a general purpose database.
+Zeichnis is originally intended as a distributed persistence layer for function memoization, dynamic programming (and even functional reactive pogramming). It is not (yet) a general purpose database. One of the possible uses of Zeichnis (with its emphasis on shared structure) will however be to allow for processing with persistent data structures (much as Clojure does locally) in a distributed manner.
 
 ### Limitations
 
 Zeichnis currently has no well-developed means of managing state. It is not a general purpose database!!
-The ostensive semantic model of Zeichnis is that of an underdefined set of terms in which we constantly keep discovering new members. There is no sense of mutability, nor a built-in means of asserting or retracting facts that will change over time (temporally labeled facts are fine). Considering these limitations Zeichnis is perfectly suited for memoizing pure functions.
+The ostensive semantic model of Zeichnis is that of an underdefined set of terms in which we constantly keep discovering new members. There is no sense of mutability, nor a built-in means of asserting or retracting facts that will change over time (temporally labeled facts are fine). Considering these characteristics Zeichnis is perfectly suited for memoizing pure functions.
 
 We are examining how to extend Zeichnis using metadata in order to enable not only attribution and semantic annotation, but also state and (partially ordered) transactions (i.e. much of the features reported missing above). This is an ongoing investigation.
 
