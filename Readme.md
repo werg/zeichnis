@@ -24,7 +24,23 @@ Zeichnis uses term-indexing strategies akin to classic Prolog. This makes it the
 
 ## Usage
 
-So far Zeichnis is not in a usable state, we are still defining the basic API.
+Interactions with Zeichnis go through one function `(z {...})` which takes one argument. This one argument usually should be a function memoization structure according to the scheme `{:function _ :input _}` in order to make calls to Zeichnis easily serializable in Zeichnis.
+
+```clojure
+(use 'zeichnis.core)
+
+(def database-conf {:my-db {:type SingleBlobStoreDB 
+                            :conf {:datastore :my-ds}}})
+
+(def datastore-conf {:my-ds {:type MapBlobStore}})
+
+(init-default-peer database-conf datastore-conf)
+
+(z {:function 'insert-term :input {:db :my-db :bucket "default" :content {:a 1}}})
+
+(z {:function 'has? :input {:db :my-db :bucket "default" :content {:a 1}}})
+
+```
 
 ## License
 
