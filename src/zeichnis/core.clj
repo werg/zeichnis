@@ -20,9 +20,6 @@
 
 (deftype ZeichnisPeer [databases]
   IZeichnisPeer
-  (peer-z [this args]
-    ;; potentially here we could filter for some special non-db functions
-    (db-z (databases (:db args)) args))
   (get-db [this db-id]
     (databases db-id)))
 
@@ -70,7 +67,7 @@
   (get-action [this action-id]
     (@blobstore-actions action-id))
   (db-action [this args]
-    ((get-action (:function args) (:input args))))
+    ((get-action this (:function args))  (:input args)))
   (db-op [this args]
     ((@blobstore-ops (:function args)) (:input args))))
 
@@ -95,3 +92,12 @@
       )))
 
 ;; yadda yadda
+
+;; do resolve-node as a simple example
+
+
+;; we need to get all the outgoing substitutions
+;; and we need to find
+;; a) those that are subsets of our term
+
+
