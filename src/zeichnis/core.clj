@@ -30,7 +30,7 @@
 
 ;; these are init multimethods for datastore and database config maps
 (defmulti init-ds :type)
-(defmulti init-db #(:type (first %)))
+(defmulti init-db (fn [conf dss] (:type conf)))
 
 (defn init-peer [database-conf datastore-conf]
   (let [dss (fmap init-ds datastore-conf)

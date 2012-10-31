@@ -7,7 +7,8 @@
 (deftype SingleSetStoreDB [datastore]
   IDatabase
   (db-action [this args]
-    ((@set-store-actions (:function args)) (:input args)))
+    (prn this args)
+    ((@set-store-actions (:function args)) this (:input args)))
   IGetDatastore
   (get-ds [this]
     datastore))
@@ -24,8 +25,8 @@
   (filter subsume (repeat content) (@(get-ds db) bucket) ))
 
 
-(swap! set-store-actions merge {:store-term store-term :is-stored? is-stored :all-subsumed all-subsumed})
+(swap! set-store-actions merge {:store-term store-term :is-stored? is-stored? :all-subsumed all-subsumed})
 
 
-(defmethod init-db 'SingleSetStoreDB [conf dss] (SingleSetStoreDB  (dss (:datastore (:conf conf)))))
+(defmethod init-db 'SingleSetStoreDB [conf dss] (SingleSetStoreDB.  (dss (:datastore (:conf conf)))))
 (defmethod init-ds 'SetStore [conf] (atom {}))

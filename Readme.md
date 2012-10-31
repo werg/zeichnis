@@ -27,7 +27,8 @@ Zeichnis uses term-indexing strategies akin to classic Prolog. This makes it the
 Interactions with Zeichnis go through one function `(z {...})` which takes one argument. This one argument usually should be a function memoization structure according to the scheme `{:function _ :input _}` in order to make calls to Zeichnis easily serializable in Zeichnis.
 
 ```clojure
-(use 'zeichnis.core)
+(use 'zeichnis.core 'zeichnis.setstore)
+
 
 (def database-conf {:my-db {:type 'SingleSetStoreDB 
                             :conf {:datastore :my-ds}}})
@@ -36,9 +37,9 @@ Interactions with Zeichnis go through one function `(z {...})` which takes one a
 
 (init-default-peer database-conf datastore-conf)
 
-(z {:db my-db :function :insert-term :input {:bucket "default" :content {:a 1}}})
+(z {:db :my-db :function :store-term :input {:bucket "default" :content {:a 1}}})
 
-(z {:db my-db :function :is-stored? :input {:bucket "default" :content {:a 1}}})
+(z {:db :my-db :function :is-stored? :input {:bucket "default" :content {:a 1}}})
 
 ```
 
