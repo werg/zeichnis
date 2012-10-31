@@ -4,6 +4,10 @@ Zeichnis is a backend-agnostic database framework intended for storage and query
 
 Zeichnis is originally intended as a distributed persistence layer for function memoization, dynamic programming (and even functional reactive pogramming). It is not (yet) a general purpose database. One of the possible uses of Zeichnis (with its emphasis on shared structure) will however be to allow for processing with persistent data structures (much as Clojure does locally) in a distributed manner.
 
+### Status
+
+Zeichnis is in early alpha stage. We are constantly developing it and there already is some documentation on the concepts going into Zeichnis in the [Wiki](https://github.com/werg/zeichnis/wiki). You can also find some basic usage below.
+
 ### Limitations
 
 Zeichnis currently has no well-developed means of managing state. It is not a general purpose database!!
