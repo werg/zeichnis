@@ -29,16 +29,16 @@ Interactions with Zeichnis go through one function `(z {...})` which takes one a
 ```clojure
 (use 'zeichnis.core)
 
-(def database-conf {:my-db {:type SingleBlobStoreDB 
+(def database-conf {:my-db {:type 'SingleSetStoreDB 
                             :conf {:datastore :my-ds}}})
 
-(def datastore-conf {:my-ds {:type MapBlobStore}})
+(def datastore-conf {:my-ds {:type 'SetStore}})
 
 (init-default-peer database-conf datastore-conf)
 
-(z {:function 'insert-term :input {:db :my-db :bucket "default" :content {:a 1}}})
+(z {:db my-db :function :insert-term :input {:bucket "default" :content {:a 1}}})
 
-(z {:function 'has? :input {:db :my-db :bucket "default" :content {:a 1}}})
+(z {:db my-db :function :is-stored? :input {:bucket "default" :content {:a 1}}})
 
 ```
 
