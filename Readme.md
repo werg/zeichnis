@@ -50,7 +50,7 @@ Interactions with Zeichnis go through one function `(z {...})` which takes one a
 
 Zeichnis' current subsumption model allows for _extension_ next to classical substitution. Extension for uniquely vertex-labeled terms means adding further children to any node (substructure) in the term. This amounts to an effect similar to having a tail variable in Prolog lists, only applied to hash maps and generalized to include an extension to any further index/key one would add.
 
-As an example: ```clojure {:a _}``` subsumes both ```clojure {:a 1}``` and ```clojure {:a _ :b 5}```.
+As an example: `{:a _}` subsumes both `{:a 1}` and `{:a _ :b 5}`.
 
 ```clojure
 (z {:db :my-db :function :store-term :input {:bucket "default" :content {:a _ :b 5}}})
