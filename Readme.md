@@ -6,7 +6,7 @@ Zeichnis is originally intended as a distributed persistence layer for function 
 
 ### Status
 
-Zeichnis is in early alpha stage. We are constantly developing it and there already is some documentation on the concepts going into Zeichnis in the [Wiki](https://github.com/werg/zeichnis/wiki). You can also find some basic usage below.
+Zeichnis is in early alpha stage. We are constantly developing it and there already is some documentation on the concepts going into Zeichnis in the [Wiki](https://github.com/werg/zeichnis/wiki). You can also find some basic usage below, using an in-memory datastore.
 
 ### Limitations
 
