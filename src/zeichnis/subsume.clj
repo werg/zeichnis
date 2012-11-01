@@ -30,23 +30,25 @@
 
 (defn subsume-keys [prototype term parent-keys child-keys path-prefix]
   "For a structural element with keys (so either map or sequence), compute substitutions recursively."
-  (when (or (= parent-keys child-keys) (cset/subset?  parent-keys child-keys))
-    (let [ext-keys (cset/difference (set child-keys) (set parent-keys))
-          exts (zipmap (map conj (repeat path-prefix) ext-keys)
-                       (map get (repeat term) ext-keys))
-          substs (loop [substs {} parent-keys parent-keys]
-                   (if (empty? parent-keys)
-                     substs
-                     (let [pk (first parent-keys)]
-                       (if-let [subst (subsume*
-                                       (get prototype pk)
-                                       (get term pk)
-                                       (conj path-prefix pk))]
-                         (recur (merge substs subst) (rest parent-keys))
-                         nil))))]
-          (if (nil? substs)
-            nil
-            (merge exts substs)))))
+  (let [pk (set parent-keys)
+        ck (set child-keys)]
+    (when (or (= pk ck) (cset/subset? pk ck))
+      (let [ext-keys (cset/difference ck pk)
+            exts (zipmap (map conj (repeat path-prefix) ext-keys)
+                         (map get (repeat term) ext-keys))
+            substs (loop [substs {} pk pk]
+                     (if (empty? pk)
+                       substs
+                       (let [p (first pk)]
+                         (if-let [subst (subsume*
+                                         (get prototype p)
+                                         (get term p)
+                                         (conj path-prefix p))]
+                           (recur (merge substs subst) (rest pk))
+                           nil))))]
+        (if (nil? substs)
+          nil
+          (merge exts substs))))))
 
 (defprotocol Keyable
   (subs-keys [this]
