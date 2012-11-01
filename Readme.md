@@ -33,28 +33,37 @@ Interactions with Zeichnis go through one function `(z {...})` which takes one a
 ```clojure
 (use 'zeichnis.core 'zeichnis.setstore)
 
-
 (def database-conf {:my-db {:type 'SingleSetStoreDB 
                             :conf {:datastore :my-ds}}})
-
 (def datastore-conf {:my-ds {:type 'SetStore}})
-
 (init-default-peer database-conf datastore-conf)
 
 (z {:db :my-db :function :store-term :input {:bucket "default" :content {:a 1}}})
 
 (z {:db :my-db :function :is-stored? :input {:bucket "default" :content {:a 1}}})
-
 (z {:db :my-db :function :is-stored? :input {:bucket "default" :content {:a 2}}})
 
 (z {:db :my-db :function :store-term :input {:bucket "default" :content {:a 2}}})
 
-(z {:db :my-db :function :all-subsumed :input {:bucket "default" :content {:a _}}})
-
+(z {:db :my-db :function :all-subsumed :input {:bucket "default" :content {:a '_}}})
 ```
+
+Zeichnis' current subsumption model allows for _extension_ next to classical substitution. Extension for uniquely vertex-labeled terms means adding further children to any node (substructure) in the term. This amounts to an effect similar to having a tail variable in Prolog lists, only applied to hash maps and generalized to include an extension to any further index/key one would add.
+
+As an example: ```clojure {:a _}``` subsumes both ```clojure {:a 1}``` and ```clojure {:a _ :b 5}```.
+
+```clojure
+(z {:db :my-db :function :store-term :input {:bucket "default" :content {:a _ :b 5}}})
+
+(z {:db :my-db :function :all-subsumed :input {:bucket "default" :content {:a '_}}})
+```
+
+This also demonstrates storing underdetermined content.
+
+
 
 ## License
 
 Copyright © 2012 White Paper Analytics Limited
 
-Distributed under the Eclipse Public License, the same as Clojure.
+Distributed under the Eclipse Public License.
