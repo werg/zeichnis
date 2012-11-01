@@ -53,7 +53,7 @@ Zeichnis' current subsumption model allows for _extension_ next to classical sub
 As an example: `{:a _}` subsumes both `{:a 1}` and `{:a _ :b 5}`.
 
 ```clojure
-(z {:db :my-db :function :store-term :input {:bucket "default" :content {:a _ :b 5}}})
+(z {:db :my-db :function :store-term :input {:bucket "default" :content {:a 1 :b '_}}})
 
 (z {:db :my-db :function :all-subsumed :input {:bucket "default" :content {:a '_}}})
 ```
