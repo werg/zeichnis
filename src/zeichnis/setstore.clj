@@ -7,7 +7,6 @@
 (deftype SingleSetStoreDB [datastore]
   IDatabase
   (db-action [this args]
-    (prn this args)
     ((@set-store-actions (:function args)) this (:input args)))
   IGetDatastore
   (get-ds [this]
@@ -22,7 +21,7 @@
   (contains? (@(get-ds db) bucket) content))
 
 (defn all-subsumed [db {:keys [content bucket]}]
-  (filter subsume (repeat content) (@(get-ds db) bucket) ))
+  (filter #(subsume content %) (@(get-ds db) bucket) ))
 
 
 (swap! set-store-actions merge {:store-term store-term :is-stored? is-stored? :all-subsumed all-subsumed})

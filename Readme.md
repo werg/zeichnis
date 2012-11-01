@@ -45,6 +45,12 @@ Interactions with Zeichnis go through one function `(z {...})` which takes one a
 
 (z {:db :my-db :function :is-stored? :input {:bucket "default" :content {:a 1}}})
 
+(z {:db :my-db :function :is-stored? :input {:bucket "default" :content {:a 2}}})
+
+(z {:db :my-db :function :store-term :input {:bucket "default" :content {:a 2}}})
+
+(z {:db :my-db :function :all-subsumed :input {:bucket "default" :content {:a _}}})
+
 ```
 
 ## License
