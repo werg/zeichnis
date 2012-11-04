@@ -73,3 +73,94 @@
        (let [parent-keys (keys this)
              child-keys (subs-keys term)]
          (subsume-keys this term parent-keys child-keys path-prefix)))))
+
+(defprotocol AntiUnifiable
+  (anti-unify [this term] [this term path-prefix]))
+
+(extend-type clojure.lang.Symbol
+  AntiUnifiable
+  (anti-unify
+    ([this term path-prefix]
+    {:lgg this ; should this return '_ ?
+     :diff1 {}
+     :diff2 (if (instance? clojure.lang.Symbol term)
+              {}
+              {path-prefix term})})
+    ([this term]
+       (anti-unify this term []))))
+
+;; todo: this does not work for lists!!!
+
+(defn- get-diff [hm keys path-prefix]
+  (into {} (map #(vector (conj path-prefix %) (hm %)) keys)))
+
+(defn anti-unify-keyables
+  ([this term]
+     (anti-unify this term []))
+  ([this term path-prefix]
+     (if (satisfies? Keyable term)
+       (let [keys1 (set (subs-keys this))
+             keys2  (set (subs-keys term))]
+         (loop [ldiff1 (get-diff this (cset/difference keys1 keys2) path-prefix)
+                ldiff2 (get-diff term (cset/difference keys2 keys1) path-prefix)
+                inter-keys (cset/intersection keys1 keys2)
+                llgg (empty this)]
+           (if (empty? inter-keys)
+             {:lgg llgg
+              :diff1 ldiff1
+              :diff2 ldiff2}
+             (let [ike (first inter-keys)
+                   {:keys [lgg diff1 diff2]} (anti-unify (get this ike)
+                                                         (get term ike)
+                                                         (conj path-prefix ike))]
+               (recur (merge ldiff1 diff1)
+                      (merge ldiff2 diff2)
+                      (rest inter-keys)
+                      (assoc llgg ike lgg))))))
+       {:lgg '_
+        :diff1 {path-prefix this}
+        :diff2 {path-prefix term}})))
+
+(extend clojure.lang.IPersistentMap
+  AntiUnifiable
+  {:anti-unify anti-unify-keyables})
+
+(extend clojure.lang.Sequential
+  AntiUnifiable
+  {:anti-unify anti-unify-keyables})
+
+(extend-type Object
+  AntiUnifiable
+  (anti-unify
+    ([this term path-prefix]
+       (if (= this term)
+         {:lgg this
+          :diff1 {}
+          :diff2 {}}
+         (if (instance? clojure.lang.Symbol term)
+           {:lgg term
+            :diff1 {path-prefix this}
+            :diff2 {}}
+           {:lgg '_
+            :diff1 {path-prefix this}
+            :diff2 {path-prefix term}})))
+    ([this term]
+       (anti-unify this term []))))
+
+(defn compare-substs [subst1 subst2]
+  (let [keys1 (set (keys subst1))
+        keys2  (set (keys subst2))]
+    (loop [ldiff1 (select-keys subst1 (cset/difference keys1 keys2))
+           ldiff2 (select-keys subst2 (cset/difference keys2 keys1))
+           inter-keys (cset/intersection keys1 keys2)
+           linter {}]
+      (if (empty? inter-keys)
+        {:inter linter
+         :diff1 ldiff1
+         :diff2 ldiff2}
+        (let [ike (first inter-keys)
+              {:keys [lgg diff1 diff2]} (anti-unify (get subst1 ike) (get subst2 ike))]
+          (recur (merge ldiff1 diff1)
+                 (merge ldiff2 diff2)
+                 (rest inter-keys)
+                 (conj linter [ike lgg])))))))
