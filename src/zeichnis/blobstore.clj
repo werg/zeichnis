@@ -19,12 +19,19 @@
   (db-action [this args]
     (if-let [action (get-action this (:function args))]
       (action  (:input args))
-      ((@blobstore-ops (:function args)) datastore (:input args)))))
+      ;; todo: insert get-datastore
+      (ds-op datastore args))))
+
+(deftype MapBlobStore [hm]
+  IDatastore
+  (ds-op [this args]
+    (let [{:keys [input function]} args]
+      (swap! hm (@blobstore-ops function) input))))
 
 (defmethod init-db 'SingleBlobStoreDB [conf dss]
   (SingleBlobStoreDB.  (dss (:datastore (:conf conf)))))
 
-(defmethod init-ds 'MapBlobStore [conf] (atom {}))
+(defmethod init-ds 'MapBlobStore [conf] (MapBlobStore. (atom {})))
 
 ;; signature for database actions is (action db args)
 
@@ -59,7 +66,6 @@
                                     :target target})
               (let [inter-spec {:content (apply-subst  (:content from-spec) inter)
                                 :bucket (:bucket from-spec)}]
-                (act db :make-node inter-spec)
                 (act db :route-through {:old-parent from
                                         :new-parent inter-spec
                                         :child child})
@@ -69,14 +75,44 @@
 
 (defn route-through [db args]
   (let [{:keys [old-parent new-parent child]} args]
-    (act db :make-link {:from new-parent :to child})
-    (act db :make-link {:from old-parent :to new-parent})
-    (act db :remove-link {:from old-parent :to child})
-    ))
+    (act db :make-link {:from new-parent :to child
+                        :label :subst :annot (subsume (:content new-parent)
+                                                      (:content child))})
+    (act db :make-link {:from old-parent :to new-parent
+                        :label :subst :annot (subsume (:content old-parent)
+                                                      (:content new-parent))})
+    (act db :remove-link {:from old-parent :to child :label :subst})))
 
+(defn- link-keypath [node-spec direction label]
+  [(:bucket node-spec) (:content node-spec) :links direction label])
 
-(defn make-link [ds args]
-  (swap! ds ))
+(defn- default-map-conj [hm arg]
+  (if (nil? hm)
+    (conj {} arg)
+    (conj hm arg)))
+
+(defn make-link [ds {:keys [from to label annot]}]
+  (update-in ds (link-keypath from :out label) default-map-conj [to annot])
+  (update-in ds (link-keypath to :in label) default-map-conj [from annot]))
+
+(defn dissoc-in
+  "Dissociates an entry from a nested associative structure returning a new
+  nested structure. keys is a sequence of keys. Any empty maps that result
+  will not be present in the new structure."
+  [m [k & ks :as keys]]
+  (if ks
+    (if-let [nextmap (get m k)]
+      (let [newmap (dissoc-in nextmap ks)]
+        (if (seq newmap)
+          (assoc m k newmap)
+          (dissoc m k)))
+      m)
+    (dissoc m k)))
+
+(defn remove-link [ds {:keys [from to label]}]
+  (dissoc-in ds (conj (link-keypath from :out label) to))
+  (dissoc-in ds (conj (link-keypath to :in label) from)))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; schnittmenge:
