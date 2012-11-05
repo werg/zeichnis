@@ -59,8 +59,10 @@ As an example: `{:a _}` subsumes both `{:a 1}` and `{:a _ :b 5}`.
 
 ```clojure
 (z {:db :my-db :function :store-term :input {:bucket "default" :content {:a 1 :b '_}}})
+=> {"default" #{{:a 1} {:a 2} {:a 1, :b _}}}
 
 (z {:db :my-db :function :all-subsumed :input {:bucket "default" :content {:a '_}}})
+=> ({:a 1} {:a 2} {:a 1, :b _})
 ```
 
 This also demonstrates storing underdetermined content.
