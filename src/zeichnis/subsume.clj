@@ -164,3 +164,12 @@
                  (merge ldiff2 diff2)
                  (rest inter-keys)
                  (conj linter [ike lgg])))))))
+
+
+(defn apply-subst [term subst]
+  (loop [term term
+         subst (seq subst)]
+    (if (empty? subst)
+      term
+      (let [[path value] (first subst)]
+        (recur (assoc-in term path value) (rest subst))))))
