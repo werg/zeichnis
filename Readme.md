@@ -39,13 +39,18 @@ Interactions with Zeichnis go through one function `(z {...})` which takes one a
 (init-default-peer database-conf datastore-conf)
 
 (z {:db :my-db :function :store-term :input {:bucket "default" :content {:a 1}}})
+=> {"default" #{{:a 1}}}
 
 (z {:db :my-db :function :is-stored? :input {:bucket "default" :content {:a 1}}})
+=> true
 (z {:db :my-db :function :is-stored? :input {:bucket "default" :content {:a 2}}})
+=> false
 
 (z {:db :my-db :function :store-term :input {:bucket "default" :content {:a 2}}})
+=> {"default" #{{:a 1} {:a 2}}}
 
 (z {:db :my-db :function :all-subsumed :input {:bucket "default" :content {:a '_}}})
+=> ({:a 1} {:a 2})
 ```
 
 Zeichnis' current subsumption model allows for _extension_ next to classical substitution. Extension for uniquely vertex-labeled terms means adding further children to any node (substructure) in the term. This amounts to an effect similar to having a tail variable in Prolog lists, only applied to hash maps and generalized to include an extension to any further index/key one would add.
