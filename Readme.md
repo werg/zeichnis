@@ -2,11 +2,20 @@
 
 Zeichnis is a backend-agnostic database framework intended for storage and query of terms. In this context 'terms' roughly correspond to JSON documents. Zeichnis indexes these terms structurally and allows us to query and store underdefined terms (e.g. containing variables). Indexing and querying works much as it would in a Prolog-like system (though we slighly depart from classical Prolog semantics).
 
+Benefits of Zeichnis include:
+* NoSQL write-scale (can deal with eventual consistency)
+* advanced indexing of JSON-like term structures
+* partially-ordered transactions
+* distributed structure sharing and immutable data
+* metadata and attribution
+
+These features are achieved fundamentally by embracing immutability as well as other semantic restrictions.
+
 Zeichnis is originally intended as a distributed persistence layer for function memoization, dynamic programming (and even functional reactive pogramming). It is not (yet) a general purpose database. One of the possible uses of Zeichnis (with its emphasis on shared structure) will however be to allow for processing persistent data structures (much as Clojure does locally) in a distributed manner.
 
 ### Status
 
-Zeichnis is in early alpha stage and under ongoing development. There already is some documentation on the concepts going into Zeichnis in the [Wiki](https://github.com/werg/zeichnis/wiki). You can also find some basic usage below, exemplified using an in-memory datastore.
+Zeichnis is in early alpha stage and under ongoing development. It has been a few weeks since the first concepts were put out and we are progressing daily. There already is some documentation on the concepts going into Zeichnis in the [Wiki](https://github.com/werg/zeichnis/wiki). You can also find some basic usage below, exemplified using an in-memory datastore.
 
 ### Architecture
 
