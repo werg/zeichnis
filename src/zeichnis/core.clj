@@ -8,7 +8,10 @@
 
 (defprotocol IDatabase
   "A database recieves requests, runs these as actions and translates calls from these actions to db-op into calls to the storage backend."
-  (db-action [this action-id]))
+  (db-action [this args]))
+
+(defprotocol IDatastore
+  (ds-op [this args]))
 
 (defprotocol IGetDatastore
   (get-ds [this]))

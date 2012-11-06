@@ -1,5 +1,6 @@
 (ns zeichnis.blobstore
-  (:use [zeichnis.subsume]))
+  (:use [zeichnis.subsume]
+        [zeichnis.core]))
 ;; databases can feature their own implementations of actions
 
 ;; in many cases we probably just re-distribute the same operations to
@@ -18,15 +19,22 @@
   IDatabase
   (db-action [this args]
     (if-let [action (get-action this (:function args))]
-      (action  (:input args))
+      (action this (:input args))
       ;; todo: insert get-datastore
-      (ds-op datastore args))))
+      (ds-op datastore args)))
+  IGetDatastore
+  (get-ds [this]
+    (get-ds datastore)))
 
 (deftype MapBlobStore [hm]
   IDatastore
   (ds-op [this args]
     (let [{:keys [input function]} args]
-      (swap! hm (@blobstore-ops function) input))))
+      (prn hm function input)
+      (swap! hm (@blobstore-ops function) input)))
+  IGetDatastore
+  (get-ds [this]
+    @hm))
 
 (defmethod init-db 'SingleBlobStoreDB [conf dss]
   (SingleBlobStoreDB.  (dss (:datastore (:conf conf)))))
@@ -38,9 +46,6 @@
 (defmacro act [db k args]
   `(zeichnis.core/db-action ~db {:function ~k :input ~args}))
 
-(defmacro trans [k args]
-  `{:function ~k :input ~args})
-
 (defn insert-node [db args]
   "insert a node specified in the format {:bucket _ :content _} into the bucket. does not store!"
   (let [{:keys [bucket content]} args]
@@ -51,40 +56,73 @@
   (let [{:keys [from target]} args
         target-term (:content target)
         our-subst (subsume (:content from) target-term)]
-    (doseq [{:keys [child annot]} (act db :follow-links-out
-                                        {:node target-term
-                                         :label :subst})]
-      ;; annot contains all the annotation stuff
-      (let [{:keys [inter diff1 diff2]} (compare-substs our-subst annot)]
-        (if inter
-          (if (empty? diff1)
-            (act db :route-through {:old-parent from
-                                    :new-parent target
-                                    :child child})
-            (if (empty? diff2)
-              (act db :insert-from {:from-spec child
-                                    :target target})
-              (let [inter-spec {:content (apply-subst  (:content from-spec) inter)
-                                :bucket (:bucket from-spec)}]
-                (act db :route-through {:old-parent from
-                                        :new-parent inter-spec
-                                        :child child})
-                (act db :insert-node inter-spec)
-                (act db :insert-from {:from inter-spec
-                                      :target target})))))))))
+    (let [has-parent? (atom false)]
+      (doseq [{:keys [child annot]} (act db :follow-links
+                                         {:node target-term
+                                          :label :subst
+                                          :direction :out})]
+        ;; annot contains all the annotation stuff
+        (let [{:keys [inter diff1 diff2]} (compare-substs our-subst annot)]
+          (when inter
+            (swap! has-parent? #(or % true))
+            (if (empty? diff1)
+              (act db :route-through {:old-parent from
+                                      :new-parent target
+                                      :child child})
+              ;; TODO: there is a problem here, if we add target as immediate child of from
+              ;; we risk, in later stages, if we find something that has a common ancestor,
+              ;; having excess links going in
+              ;; but maybe this only happens if we're updating concurrently?
+              (if (empty? diff2)
+                (act db :insert-from {:from-spec child
+                                      :target target})
+                (let [inter-spec {:content (apply-subst  (:content from) inter)
+                                  :bucket (:bucket from)}]
+                  (act db :route-through {:old-parent from
+                                          :new-parent inter-spec
+                                          :child child})
+                  (act db :insert-node inter-spec)
+                  (act db :insert-from {:from inter-spec
+                                        :target target})))))))
+      (if (not @has-parent?)
+        (act db :make-link {:from from
+                            :to target
+                            :label :subst
+                            :annot our-subst})))))
+
+(defn get-root [db args]
+  (let [root-spec (merge args {:content '_})]
+    (act db :make-node root-spec)
+    root-spec))
 
 (defn route-through [db args]
   (let [{:keys [old-parent new-parent child]} args]
-    (act db :make-link {:from new-parent :to child
-                        :label :subst :annot (subsume (:content new-parent)
-                                                      (:content child))})
-    (act db :make-link {:from old-parent :to new-parent
-                        :label :subst :annot (subsume (:content old-parent)
-                                                      (:content new-parent))})
+    (act db :make-link {:from new-parent
+                        :to child
+                        :label :subst
+                        :annot (subsume (:content new-parent)
+                                        (:content child))})
+    (act db :make-link {:from old-parent
+                        :to new-parent
+                        :label :subst
+                        :annot (subsume (:content old-parent)
+                                        (:content new-parent))})
     (act db :remove-link {:from old-parent :to child :label :subst})))
 
 (defn- link-keypath [node-spec direction label]
   [(:bucket node-spec) (:content node-spec) :links direction label])
+
+(defn ds-follow-links [ds {:keys [direction node label]}]
+  (get-in ds (link-keypath node direction label)))
+
+(defn ds-has? [ds {:keys [bucket content]}]
+  (not (nil? (get-in ds [bucket content]))))
+
+(defn follow-links [db args]
+  (ds-follow-links (get-ds db) args))
+
+(defn has? [db args]
+  (ds-has? (get-ds db) args))
 
 (defn- default-map-conj [hm arg]
   (if (nil? hm)
@@ -113,6 +151,23 @@
   (dissoc-in ds (conj (link-keypath from :out label) to))
   (dissoc-in ds (conj (link-keypath to :in label) from)))
 
+(defn make-node [ds args]
+  (let [{:keys [bucket content]} args]
+    (if (ds-has? ds args)
+      ds
+      (assoc-in ds [bucket content :links] {:in {} :out {}}))))
+
+(swap! blobstore-actions merge {:insert-node insert-node
+                                :insert-from insert-from
+                                :route-through route-through
+                                :get-root get-root
+                                :follow-links follow-links
+                                :has? has?})
+
+(swap! blobstore-ops merge {:make-link make-link
+                            :remove-link remove-link
+                            :make-node make-node
+                            :has? has?})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; schnittmenge:
