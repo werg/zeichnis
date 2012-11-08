@@ -1,6 +1,10 @@
 (ns zeichnis.blobstore
   (:use [zeichnis.subsume]
         [zeichnis.core]))
+
+;; this file contains a first draft of how a zeichnis-database could be constructed against a mutable k-v store
+;; metadata is still elided
+
 ;; databases can feature their own implementations of actions
 
 ;; in many cases we probably just re-distribute the same operations to
@@ -44,7 +48,8 @@
 ;; signature for database actions is (action db args)
 
 (defmacro act [db k args]
-  `(zeichnis.core/db-action ~db {:function ~k :input ~args}))
+  `(do  ;(prn ~db ~k ~args)
+       (zeichnis.core/db-action ~db {:function ~k :input ~args})))
 
 (defn insert-node [db args]
   "insert a node specified in the format {:bucket _ :content _} into the bucket. does not store!"
@@ -57,30 +62,32 @@
         target-term (:content target)
         our-subst (subsume (:content from) target-term)]
     (let [has-parent? (atom false)]
-      (doseq [{:keys [child annot]} (act db :follow-links
-                                         {:node target-term
+      (doseq [{:keys [neighbor annot]} (act db :follow-links
+                                         {:node from
                                           :label :subst
                                           :direction :out})]
         ;; annot contains all the annotation stuff
+        (prn :compare-subst our-subst annot)
         (let [{:keys [inter diff1 diff2]} (compare-substs our-subst annot)]
+          (prn inter diff1 diff2)
           (when inter
             (swap! has-parent? #(or % true))
             (if (empty? diff1)
               (act db :route-through {:old-parent from
                                       :new-parent target
-                                      :child child})
+                                      :child neighbor})
               ;; TODO: there is a problem here, if we add target as immediate child of from
               ;; we risk, in later stages, if we find something that has a common ancestor,
               ;; having excess links going in
               ;; but maybe this only happens if we're updating concurrently?
               (if (empty? diff2)
-                (act db :insert-from {:from-spec child
+                (act db :insert-from {:from neighbor
                                       :target target})
                 (let [inter-spec {:content (apply-subst  (:content from) inter)
                                   :bucket (:bucket from)}]
                   (act db :route-through {:old-parent from
                                           :new-parent inter-spec
-                                          :child child})
+                                          :child neighbor})
                   (act db :insert-node inter-spec)
                   (act db :insert-from {:from inter-spec
                                         :target target})))))))
@@ -109,11 +116,44 @@
                                         (:content new-parent))})
     (act db :remove-link {:from old-parent :to child :label :subst})))
 
+(defn store-term [db args]
+  (act db :insert-node args)
+  (act db :mark-stored args))
+
+(defn ds-is-stored? [ds {:keys [bucket content]}]
+  (let [flag (get-in ds [bucket content :stored?])]
+    (if (nil? flag)
+      false
+      flag)))
+
+(defn is-stored? [db args]
+  (ds-is-stored? (get-ds db) args))
+
+;; go through all children
+;; if they subsume our term, descend into them
+;; if our term subsumes them, add them to result and descend into them
+(defn all-children-subsumed [db children subsumer]
+  (concat (filter #(subsume subsumer (:content %)) children)
+          (mapcat #(act db :all-subsumed-from {:from %
+                                               :subsumer subsumer})
+                  (filter #(subsume (:content %) subsumer) children))))
+
+(defn all-subsumed-from [db {:keys [from subsumer]}]
+  (let [children (map :child (act db
+                      :follow-links {:node from
+                                     :label :subst
+                                     :direction :out}))]
+    (all-children-subsumed db children subsumer)))
+
+(defn all-subsumed [db subsumer]
+  (all-children-subsumed db [(act db :get-root subsumer)] subsumer))
+
 (defn- link-keypath [node-spec direction label]
   [(:bucket node-spec) (:content node-spec) :links direction label])
 
 (defn ds-follow-links [ds {:keys [direction node label]}]
-  (get-in ds (link-keypath node direction label)))
+  ;; paste the child, which was the key into a {:child .. :label ... :annot} structure
+  (map #(hash-map :annot (second %) :neighbor (first %) ) (get-in ds (link-keypath node direction label))))
 
 (defn ds-has? [ds {:keys [bucket content]}]
   (not (nil? (get-in ds [bucket content]))))
@@ -126,12 +166,11 @@
 
 (defn- default-map-conj [hm arg]
   (if (nil? hm)
-    (conj {} arg)
-    (conj hm arg)))
+    (conj {} arg)    (conj hm arg)))
 
 (defn make-link [ds {:keys [from to label annot]}]
-  (update-in ds (link-keypath from :out label) default-map-conj [to annot])
-  (update-in ds (link-keypath to :in label) default-map-conj [from annot]))
+  (let [new-ds (update-in ds (link-keypath from :out label) default-map-conj [to annot])]
+      (update-in new-ds (link-keypath to :in label) default-map-conj [from annot])))
 
 (defn dissoc-in
   "Dissociates an entry from a nested associative structure returning a new
@@ -157,61 +196,30 @@
       ds
       (assoc-in ds [bucket content :links] {:in {} :out {}}))))
 
+(defn mark-stored [ds {:keys [bucket content]}]
+  (assoc-in ds [bucket content :stored?] true))
+
 (swap! blobstore-actions merge {:insert-node insert-node
                                 :insert-from insert-from
                                 :route-through route-through
                                 :get-root get-root
                                 :follow-links follow-links
-                                :has? has?})
+                                :has? has?
+                                :store-term store-term
+                                :is-stored? is-stored?
+                                :all-subsumed all-subsumed
+                                :all-subsumed-from all-subsumed-from})
 
 (swap! blobstore-ops merge {:make-link make-link
                             :remove-link remove-link
                             :make-node make-node
-                            :has? has?})
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; schnittmenge:
-;; create node for schnittmenge
-;; do :route-through-ancestor on both 
-;;   link parent to schnittmenge
-;;   link target and schnittmenge with difference
-;; insert new schnittmenge node from the top
-
-;; no schnittmenge:
-;; leave as it is
-;; if we have a complete subset:
-;; either descend (i.e. :insert-from)
-;; or do :route-through-ancestor
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                            :has? has?
+                            :mark-stored mark-stored})
 
 
-;; route through ancestor (old-parent new-parent child)
-;; insert new-parent -- child link
-;; insert old-parent -- new-parent link
-;; remove old-parent -- child link
-;; possibly route other parents through new parent!!! (no, since we insert from the top we're fine)
-
-
-
-; resolve-node as simple example
-
-
-;; we need to get all the outgoing substitutions
-;; and we need to find our own substitions (for the target term)
-;; first of all our own substitutions
-;; a) those where all their paths leading on are contained or sub-paths of our term -- we're a child of theirs
-;; b) those children with an overlap (either we are subpath of theirs, or they of ours, introduce new common ancestor with the overlap and sub-paths)
-;; c) substutions to the target term that are not covered anywhere (orphans)
-
-;; for b) we need anti-unification
-
-
-
-;; :store term entails
-;; :insert-node
-;; :add-meta that it's stored
-
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; thoughts about meta
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; :add-meta entails
 ;; :insert-node with the metadata
 ;; (into its own kind of index) -- [:meta-bucket is optional?]
