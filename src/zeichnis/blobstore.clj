@@ -34,7 +34,6 @@
   IDatastore
   (ds-op [this args]
     (let [{:keys [input function]} args]
-      (prn hm function input)
       (swap! hm (@blobstore-ops function) input)))
   IGetDatastore
   (get-ds [this]
@@ -48,8 +47,7 @@
 ;; signature for database actions is (action db args)
 
 (defmacro act [db k args]
-  `(do  ;(prn ~db ~k ~args)
-       (zeichnis.core/db-action ~db {:function ~k :input ~args})))
+  `(zeichnis.core/db-action ~db {:function ~k :input ~args}))
 
 (defn insert-node [db args]
   "insert a node specified in the format {:bucket _ :content _} into the bucket. does not store!"
@@ -60,42 +58,43 @@
 (defn insert-from [db args]
   (let [{:keys [from target]} args
         target-term (:content target)
-        our-subst (subsume (:content from) target-term)]
-    (let [has-parent? (atom false)]
-      (doseq [{:keys [neighbor annot]} (act db :follow-links
-                                         {:node from
-                                          :label :subst
-                                          :direction :out})]
-        ;; annot contains all the annotation stuff
-        (prn :compare-subst our-subst annot)
-        (let [{:keys [inter diff1 diff2]} (compare-substs our-subst annot)]
-          (prn inter diff1 diff2)
-          (when inter
-            (swap! has-parent? #(or % true))
-            (if (empty? diff1)
-              (act db :route-through {:old-parent from
-                                      :new-parent target
-                                      :child neighbor})
-              ;; TODO: there is a problem here, if we add target as immediate child of from
-              ;; we risk, in later stages, if we find something that has a common ancestor,
-              ;; having excess links going in
-              ;; but maybe this only happens if we're updating concurrently?
-              (if (empty? diff2)
-                (act db :insert-from {:from neighbor
-                                      :target target})
-                (let [inter-spec {:content (apply-subst  (:content from) inter)
-                                  :bucket (:bucket from)}]
-                  (act db :route-through {:old-parent from
-                                          :new-parent inter-spec
-                                          :child neighbor})
-                  (act db :insert-node inter-spec)
-                  (act db :insert-from {:from inter-spec
-                                        :target target})))))))
-      (if (not @has-parent?)
-        (act db :make-link {:from from
-                            :to target
-                            :label :subst
-                            :annot our-subst})))))
+        from-term  (:content from)
+        our-subst (subsume from-term target-term)]
+    (when (not (empty? our-subst)) ;; i.e. we are actually a child (and not the same as from)
+      (let [has-parent? (atom false)]
+        (doseq [{:keys [neighbor annot]} (act db :follow-links
+                                              {:node from
+                                               :label :subst
+                                               :direction :out})]
+          ;; annot contains all the annotation stuff
+          (let [{:keys [inter diff1 diff2]} (compare-substs our-subst annot)]
+            (when (and inter (not (empty? (subsume from-term inter))))
+              (swap! has-parent? #(or % true))
+              (if (and (empty? diff1) (not (empty? diff2)))
+                ;; check that we're not the same as neighbor
+                (act db :route-through {:old-parent from
+                                        :new-parent target
+                                        :child neighbor})
+                ;; TODO: there is a problem here, if we add target as immediate child of from
+                ;; we risk, in later stages, if we find something that has a common ancestor,
+                ;; having excess links going in
+                ;; but maybe this only happens if we're updating concurrently?
+                (if (empty? diff2)
+                  (act db :insert-from {:from neighbor
+                                        :target target})
+                  (let [inter-spec {:content (apply-subst  (:content from) inter)
+                                    :bucket (:bucket from)}]
+                    (act db :route-through {:old-parent from
+                                            :new-parent inter-spec
+                                            :child neighbor})
+                    (act db :insert-node inter-spec)
+                    (act db :insert-from {:from inter-spec
+                                          :target target})))))))
+        (when (not @has-parent?)
+          (act db :make-link {:from from
+                              :to target
+                              :label :subst
+                              :annot our-subst}))))))
 
 (defn get-root [db args]
   (let [root-spec (merge args {:content '_})]
@@ -170,7 +169,7 @@
 
 (defn make-link [ds {:keys [from to label annot]}]
   (let [new-ds (update-in ds (link-keypath from :out label) default-map-conj [to annot])]
-      (update-in new-ds (link-keypath to :in label) default-map-conj [from annot])))
+    (update-in new-ds (link-keypath to :in label) default-map-conj [from annot])))
 
 (defn dissoc-in
   "Dissociates an entry from a nested associative structure returning a new
