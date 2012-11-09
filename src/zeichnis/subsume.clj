@@ -54,6 +54,11 @@
   (subs-keys [this]
     "Returns keys of substructures."))
 
+(extend-type nil
+  Subsumer
+  (subsume [this term]
+    (prn nil :subsume term)))
+
 (extend-type clojure.lang.Sequential
   Keyable
   (subs-keys [this]
@@ -69,10 +74,11 @@
  (subsume
     ([this term]
        (subsume this term []))
-    ([this term path-prefix]
-       (let [parent-keys (keys this)
-             child-keys (subs-keys term)]
-         (subsume-keys this term parent-keys child-keys path-prefix)))))
+   ([this term path-prefix]
+      (when (satisfies? Keyable term)
+        (let [parent-keys (keys this)
+              child-keys (subs-keys term)]
+          (subsume-keys this term parent-keys child-keys path-prefix))))))
 
 (defprotocol AntiUnifiable
   (anti-unify [this term] [this term path-prefix]))
@@ -172,4 +178,6 @@
     (if (empty? subst)
       term
       (let [[path value] (first subst)]
-        (recur (assoc-in term path value) (rest subst))))))
+        (if (and (empty? path) (symbol? term) (empty? (rest subst)))
+          value
+          (recur (assoc-in term path value) (rest subst)))))))
