@@ -48,6 +48,12 @@ Interactions with Zeichnis go through one function `(z {...})` which takes one a
 (def database-conf {:my-db {:type 'SingleSetStoreDB 
                             :conf {:datastore :my-ds}}})
 (def datastore-conf {:my-ds {:type 'SetStore}})
+
+;; alternatively use these two lines for a different (in-memory) storage backend:
+(def database-conf {:my-db {:type 'SingleBlobStoreDB :conf {:datastore :my-ds}}})
+(def datastore-conf {:my-ds {:type 'MapBlobStore}})
+
+
 (init-default-peer database-conf datastore-conf)
 
 (z {:db :my-db :function :store-term :input {:bucket "default" :content {:a 1}}})
