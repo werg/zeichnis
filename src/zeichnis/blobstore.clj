@@ -214,19 +214,3 @@
                             :make-node make-node
                             :has? has?
                             :mark-stored mark-stored})
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; thoughts about meta
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; :add-meta entails
-;; :insert-node with the metadata
-;; (into its own kind of index) -- [:meta-bucket is optional?]
-
-;; meta-thingy is for:
-;; attribution
-;; transaction
-;; time information
-;; providing the surface representation
-
-;; the content of it is {:stored }_
