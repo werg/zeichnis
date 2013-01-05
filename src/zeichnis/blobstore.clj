@@ -14,6 +14,7 @@
 (def blobstore-ops (atom {}))
 
 (defprotocol IGetAction
+  "retrieves the function to be executed for a given action identifier"
   (get-action [this action-id]))
 
 (deftype SingleBlobStoreDB [datastore]
@@ -36,8 +37,7 @@
     (let [{:keys [input function]} args]
       (swap! hm (@blobstore-ops function) input)))
   IGetDatastore
-  (get-ds [this]
-    @hm))
+  (get-ds [this]    @hm))
 
 (defmethod init-db 'SingleBlobStoreDB [conf dss]
   (SingleBlobStoreDB.  (dss (:datastore (:conf conf)))))
@@ -49,8 +49,9 @@
 (defmacro act [db k args]
   `(zeichnis.core/db-action ~db {:function ~k :input ~args}))
 
-(defn insert-node [db args]
+(defn insert-node
   "insert a node specified in the format {:bucket _ :content _} into the bucket. does not store!"
+  [db args]
   (let [{:keys [bucket content]} args]
     (act db :insert-from {:target args
                           :from (act db :get-root {:bucket bucket})})))
