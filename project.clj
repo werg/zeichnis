@@ -4,4 +4,5 @@
   :license {:name "GNU GPL"
             :url "http://www.gnu.org/copyleft/gpl.html"}
   :dependencies [[org.clojure/clojure "1.4.0"]
-                 [com.novemberain/welle "1.3.1"]])
+                 [com.novemberain/welle "1.3.1"]
+                 [org.fressian/fressian "0.6.3"]])
